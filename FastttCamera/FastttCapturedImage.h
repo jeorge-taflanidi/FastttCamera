@@ -61,4 +61,9 @@
  */
 @property (nonatomic, assign) UIImageOrientation capturedImageOrientation;
 
+/**
+ * A dictionary of key-value pairs for an image that uses Exchangeable Image File Format (EXIF).
+ */
+@property (nonatomic, copy) NSDictionary *exifInfo;
+
 @end
