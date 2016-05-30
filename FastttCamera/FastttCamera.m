@@ -7,6 +7,7 @@
 //
 
 #import <AVFoundation/AVFoundation.h>
+#import <ImageIO/ImageIO.h>
 
 #import "FastttCamera.h"
 #import "IFTTTDeviceOrientation.h"
@@ -222,17 +223,17 @@
 
 - (void)processImage:(UIImage *)image withMaxDimension:(CGFloat)maxDimension
 {
-    [self _processImage:image withCropRect:CGRectNull maxDimension:maxDimension fromCamera:NO needsPreviewRotation:NO previewOrientation:UIDeviceOrientationUnknown];
+    [self _processImage:image withCropRect:CGRectNull maxDimension:maxDimension fromCamera:NO needsPreviewRotation:NO previewOrientation:UIDeviceOrientationUnknown exifInfo:@{}];
 }
 
 - (void)processImage:(UIImage *)image withCropRect:(CGRect)cropRect
 {
-    [self _processImage:image withCropRect:cropRect maxDimension:0.f fromCamera:NO needsPreviewRotation:NO previewOrientation:UIDeviceOrientationUnknown];
+    [self _processImage:image withCropRect:cropRect maxDimension:0.f fromCamera:NO needsPreviewRotation:NO previewOrientation:UIDeviceOrientationUnknown exifInfo:@{}];
 }
 
 - (void)processImage:(UIImage *)image withCropRect:(CGRect)cropRect maxDimension:(CGFloat)maxDimension
 {
-    [self _processImage:image withCropRect:cropRect maxDimension:maxDimension fromCamera:NO needsPreviewRotation:NO previewOrientation:UIDeviceOrientationUnknown];
+    [self _processImage:image withCropRect:cropRect maxDimension:maxDimension fromCamera:NO needsPreviewRotation:NO previewOrientation:UIDeviceOrientationUnknown exifInfo:@{}];
 }
 
 #pragma mark - Camera State
@@ -541,12 +542,17 @@
          if ([self.delegate respondsToSelector:@selector(cameraController:didFinishCapturingImageData:)]) {
              [self.delegate cameraController:self didFinishCapturingImageData:imageData];
          }
+         
+         NSDictionary *exifInfo = CMGetAttachment(imageDataSampleBuffer, kCGImagePropertyExifDictionary, nil);
 
          dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
              
              UIImage *image = [UIImage imageWithData:imageData];
              
-             [self _processCameraPhoto:image needsPreviewRotation:needsPreviewRotation previewOrientation:previewOrientation];
+             [self _processCameraPhoto:image
+                  needsPreviewRotation:needsPreviewRotation
+                    previewOrientation:previewOrientation
+                              exifInfo:exifInfo];
          });
      }];
 #endif
@@ -554,17 +560,17 @@
 
 #pragma mark - Processing a Photo
 
-- (void)_processCameraPhoto:(UIImage *)image needsPreviewRotation:(BOOL)needsPreviewRotation previewOrientation:(UIDeviceOrientation)previewOrientation
+- (void)_processCameraPhoto:(UIImage *)image needsPreviewRotation:(BOOL)needsPreviewRotation previewOrientation:(UIDeviceOrientation)previewOrientation exifInfo:(NSDictionary *)exifInfo
 {
     CGRect cropRect = CGRectNull;
     if (self.cropsImageToVisibleAspectRatio) {
         cropRect = [image fastttCropRectFromPreviewLayer:_previewLayer];
     }
     
-    [self _processImage:image withCropRect:cropRect maxDimension:self.maxScaledDimension fromCamera:YES needsPreviewRotation:(needsPreviewRotation || !self.interfaceRotatesWithOrientation) previewOrientation:previewOrientation];
+    [self _processImage:image withCropRect:cropRect maxDimension:self.maxScaledDimension fromCamera:YES needsPreviewRotation:(needsPreviewRotation || !self.interfaceRotatesWithOrientation) previewOrientation:previewOrientation exifInfo:exifInfo];
 }
 
-- (void)_processImage:(UIImage *)image withCropRect:(CGRect)cropRect maxDimension:(CGFloat)maxDimension fromCamera:(BOOL)fromCamera needsPreviewRotation:(BOOL)needsPreviewRotation previewOrientation:(UIDeviceOrientation)previewOrientation
+- (void)_processImage:(UIImage *)image withCropRect:(CGRect)cropRect maxDimension:(CGFloat)maxDimension fromCamera:(BOOL)fromCamera needsPreviewRotation:(BOOL)needsPreviewRotation previewOrientation:(UIDeviceOrientation)previewOrientation exifInfo:(NSDictionary *)exifInfo
 {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         if (fromCamera && !self.isCapturingImage) {
@@ -583,6 +589,7 @@
                          }
                          if ([self.delegate respondsToSelector:@selector(cameraController:didFinishCapturingImage:)]) {
                              dispatch_async(dispatch_get_main_queue(), ^{
+                                 capturedImage.exifInfo = exifInfo;
                                  [self.delegate cameraController:self didFinishCapturingImage:capturedImage];
                              });
                          }
@@ -594,6 +601,7 @@
             }
             if ([self.delegate respondsToSelector:@selector(cameraController:didFinishScalingCapturedImage:)]) {
                 dispatch_async(dispatch_get_main_queue(), ^{
+                    capturedImage.exifInfo = exifInfo;
                     [self.delegate cameraController:self didFinishScalingCapturedImage:capturedImage];
                 });
             }
@@ -622,7 +630,9 @@
                 }
                 if ([self.delegate respondsToSelector:@selector(cameraController:didFinishNormalizingCapturedImage:)]) {
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        [self.delegate cameraController:self didFinishNormalizingCapturedImage:capturedImage];
+                        capturedImage.exifInfo = exifInfo;
+                        [self.delegate cameraController:self
+                      didFinishNormalizingCapturedImage:capturedImage];
                     });
                 }
             }];
