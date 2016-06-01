@@ -521,7 +521,15 @@
     [self _insertPreviewLayer];
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         UIImage *fakeImage = [UIImage fastttFakeTestImage];
-        [self _processCameraPhoto:fakeImage needsPreviewRotation:needsPreviewRotation previewOrientation:UIDeviceOrientationPortrait];
+        [self _processCameraPhoto:fakeImage
+             needsPreviewRotation:needsPreviewRotation
+               previewOrientation:UIDeviceOrientationPortrait
+                         exifInfo:@{
+                                    (NSString *)kCGImagePropertyExifFNumber: @0,
+                                    (NSString *)kCGImagePropertyExifFocalLength: @0,
+                                    (NSString *)kCGImagePropertyExifISOSpeedRatings: @[@0],
+                                    (NSString *)kCGImagePropertyExifShutterSpeedValue: @0
+                                    }];
     });
 #else    
     UIDeviceOrientation previewOrientation = [self _currentPreviewDeviceOrientation];
